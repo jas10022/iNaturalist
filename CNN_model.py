@@ -11,9 +11,9 @@ import tensorflow as tf
 import numpy as np
 
 tf.logging.set_verbosity(tf.logging.INFO)
-#tensorflow model
 
-def cnn_model(features, labels, mode):
+#tensorflow model function
+def cnn_model(features, labels, mode, output_nodes):
     
     my_placeholder = tf.placeholder(tf.float32, shape=[None, 800])
     #Input layer
@@ -46,7 +46,7 @@ def cnn_model(features, labels, mode):
           inputs=dense, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
     
       # Logits Layer
-    logits = tf.layers.dense(inputs=dropout, units=10)
+    logits = tf.layers.dense(inputs=dropout, units=output_nodes)
     
     predictions = {
           # Generate predictions (for PREDICT and EVAL mode)
@@ -79,37 +79,40 @@ def cnn_model(features, labels, mode):
           mode=mode, loss=loss, eval_metric_ops=eval_metric_ops)
       
 #This is where we need to load up the data for each group
-      
-# Create the Estimator
-cnn_classifier = tf.estimator.Estimator(
-    model_fn=cnn_model, model_dir="/tmp/cnn_dynamic_model")
 
-# Set up logging for predictions
-tensors_to_log = {"probabilities": "softmax_tensor"}
-
-logging_hook = tf.train.LoggingTensorHook(
-    tensors=tensors_to_log, every_n_iter=50)
-
-# Train the model
-train_input_fn = tf.estimator.inputs.numpy_input_fn(
-    x={"x": train_data},
-    y=train_labels,
-    batch_size=100,
-    num_epochs=None,
-    shuffle=True)
-
-# Train one step and display the probabilties
-cnn_classifier.train(
-    input_fn=train_input_fn,
-    steps=1,
-    hooks=[logging_hook])
-
-# Evaluation of the neural network
-eval_input_fn = tf.estimator.inputs.numpy_input_fn(
-    x={"x": eval_data},
-    y=eval_labels,
-    num_epochs=1,
-    shuffle=False)
-
-eval_results = mnist_classifier.evaluate(input_fn=eval_input_fn)
-print(eval_results)
+def CNN(train_data, train_labels, eval_data, eval_labels):
+    # Create the Estimator
+    cnn_classifier = tf.estimator.Estimator(
+        model_fn=cnn_model, model_dir="/tmp/cnn_dynamic_model")
+    
+    # Set up logging for predictions
+    tensors_to_log = {"probabilities": "softmax_tensor"}
+    
+    logging_hook = tf.train.LoggingTensorHook(
+        tensors=tensors_to_log, every_n_iter=50)
+    
+    # Train the model
+    train_input_fn = tf.estimator.inputs.numpy_input_fn(
+        x={"x": train_data},
+        y=train_labels,
+        batch_size=100,
+        num_epochs=None,
+        shuffle=True)
+    
+    # Train one step and display the probabilties
+    cnn_classifier.train(
+        input_fn=train_input_fn,
+        steps=1,
+        hooks=[logging_hook])
+    
+    # Evaluation of the neural network
+    eval_input_fn = tf.estimator.inputs.numpy_input_fn(
+        x={"x": eval_data},
+        y=eval_labels,
+        num_epochs=1,
+        shuffle=False)
+    
+    eval_results = cnn_classifier.evaluate(input_fn=eval_input_fn)
+    print(eval_results)
+    
+    return cnn_classifier
