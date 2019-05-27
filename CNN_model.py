@@ -143,6 +143,7 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, t
     eval_results = cnn_classifier.evaluate(input_fn=eval_input_fn)
     print(eval_results)
     
+    #instead of predicting on a test data set we will save the model
     test_data_final = tf.estimator.inputs.numpy_input_fn(
         x={"x": test_data},
         num_epochs=1,
@@ -178,6 +179,30 @@ test_data = test_data.astype('float32') /255
 #this line creates and trains the entire model the inputs are below and must be given 
 # an output number of nodes, for this there is 10
 prediction = CNN(train_data,train_labels,eval_data,eval_labels,10, test_data)
+
+#this is how we can load a specific model and then predict on that model
+sess = tf.Session(config=config)
+
+init=tf.global_variables_initializer()
+
+sess.run(init)
+
+saver = tf.train.import_meta_graph("Model.meta")
+
+saver.restore(sess, "Model")
+
+graph=tf.get_default_graph()
+
+xs0=graph.get_tensor_by_name("Xinput:0")
+
+prediction=graph.get_tensor_by_name("add:0")
+
+training=graph.get_tensor_by_name("PlaceholderWithDefault/input:0")
+
+loss=graph.get_tensor_by_name("Mean:0")
+
+sess.run([loss,prediction] ,feed_dict={xs0: batch_xs, training: False})
+
 
 #once the model has been created we can predict on a new set of data the output
 #class_ids is the column of the predictions
