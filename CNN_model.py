@@ -16,32 +16,8 @@ from PIL import Image
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, test_data):
+def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, model_name):
     
-    #convert images into 28 x 28 pictures
-    train_data = train_data.values.reshape((-1, 28, 28, 1))
-    train_data = train_data.astype('float32') /255
-    
-    eval_data = eval_data.values.reshape((-1, 28, 28, 1))
-    eval_data = eval_data.astype('float32') /255
-    
-    test_data = test_data.values.reshape((-1, 28, 28, 1))
-    test_data = test_data.astype('float32') /255
-
-    # Convert `images28` to an array
-    train_data = np.array(train_data)
-    # Convert `images28` to grayscale
-    train_data = rgb2gray(train_data)
-    
-    # Convert `images28` to an array
-    eval_data = np.array(eval_data)
-    # Convert `images28` to grayscale
-    eval_data = rgb2gray(eval_data)
-    
-    # Convert `images28` to an array
-    test_data = np.array(eval_data)
-    # Convert `images28` to grayscale
-    test_data = rgb2gray(eval_data)
     
     #tensorflow model function
     def cnn_model(features, labels, mode):
@@ -83,8 +59,11 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, t
                     'probabilities': tf.nn.softmax(logits, name="softmax_tensor"),
                     'logits': logits,
                 }
+        export_outputs = {
+          'prediction': tf.estimator.export.PredictOutput(predictions)
+          }
         if mode == tf.estimator.ModeKeys.PREDICT:  
-            return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
+            return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions, export_outputs=export_outputs)
         
           # Calculate Loss (for both TRAIN and EVAL modes)
         loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)
@@ -104,6 +83,12 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, t
         }
         return tf.estimator.EstimatorSpec(
               mode=mode, loss=loss, eval_metric_ops=eval_metric_ops)
+        
+    def serving_input_receiver_fn():
+      inputs = {
+        "x": tf.placeholder(tf.float32, [None, 28, 28, 1]),
+      }
+      return tf.estimator.export.ServingInputReceiver(inputs, inputs)
       
     #This is where we need to load up the data for each group
 
@@ -144,14 +129,11 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, t
     print(eval_results)
     
     #instead of predicting on a test data set we will save the model
-    test_data_final = tf.estimator.inputs.numpy_input_fn(
-        x={"x": test_data},
-        num_epochs=1,
-        shuffle=False)
+    model_dir = cnn_classifier.export_savedmodel(
+        model_name,
+        serving_input_receiver_fn=serving_input_receiver_fn)
     
-    pred = cnn_classifier.predict(test_data_final)
-    
-    return pred
+    return model_dir
 
 
 # example of how to implement
@@ -178,35 +160,28 @@ test_data = test_data.astype('float32') /255
 
 #this line creates and trains the entire model the inputs are below and must be given 
 # an output number of nodes, for this there is 10
-prediction = CNN(train_data,train_labels,eval_data,eval_labels,10, test_data)
+model_location = CNN(train_data,train_labels,eval_data,eval_labels,10, "save")
 
 #this is how we can load a specific model and then predict on that model
-sess = tf.Session(config=config)
+sess = tf.Session()
 
 init=tf.global_variables_initializer()
 
 sess.run(init)
 
-saver = tf.train.import_meta_graph("Model.meta")
+tf.saved_model.loader.load(sess, [tf.saved_model.tag_constants.SERVING], model_location)
+predictor  = tf.contrib.predictor.from_saved_model(model_location)
 
-saver.restore(sess, "Model")
+#Prediction call
+predictions = predictor({'x':test_data})
 
-graph=tf.get_default_graph()
-
-xs0=graph.get_tensor_by_name("Xinput:0")
-
-prediction=graph.get_tensor_by_name("add:0")
-
-training=graph.get_tensor_by_name("PlaceholderWithDefault/input:0")
-
-loss=graph.get_tensor_by_name("Mean:0")
-
-sess.run([loss,prediction] ,feed_dict={xs0: batch_xs, training: False})
+pred_class = np.array([p['class_ids'] for p in predictions]).squeeze()
+print(pred_class)
 
 
 #once the model has been created we can predict on a new set of data the output
 #class_ids is the column of the predictions
-y_classes = list(prediction)
+y_classes = list(pred_class)
 
 y = pd.DataFrame.from_dict(y_classes)
 
@@ -220,5 +195,25 @@ output1.to_csv(r'/Users/jas10022/Documents/GitHub/iNaturalist/output1.csv', inde
 
 
 
+#convert images into 28 x 28 pictures
+    train_data = train_data.values.reshape((-1, 28, 28, 1))
+    train_data = train_data.astype('float32') /255
+    
+    eval_data = eval_data.values.reshape((-1, 28, 28, 1))
+    eval_data = eval_data.astype('float32') /255
 
+    # Convert `images28` to an array
+    train_data = np.array(train_data)
+    # Convert `images28` to grayscale
+    train_data = rgb2gray(train_data)
+    
+    # Convert `images28` to an array
+    eval_data = np.array(eval_data)
+    # Convert `images28` to grayscale
+    eval_data = rgb2gray(eval_data)
+    
+    # Convert `images28` to an array
+    test_data = np.array(eval_data)
+    # Convert `images28` to grayscale
+    test_data = rgb2gray(eval_data)
 
