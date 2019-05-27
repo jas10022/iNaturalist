@@ -9,15 +9,44 @@ from __future__ import absolute_import, division, print_function
 
 import tensorflow as tf
 import numpy as np
+from skimage import transform 
+from skimage.color import rgb2gray
+import pandas as pd
+from PIL import Image
 
 tf.logging.set_verbosity(tf.logging.INFO)
-def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number):
-#tensorflow model function
+
+def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, test_data):
+    
+    #convert images into 28 x 28 pictures
+    train_data = train_data.values.reshape((-1, 28, 28, 1))
+    train_data = train_data.astype('float32') /255
+    
+    eval_data = eval_data.values.reshape((-1, 28, 28, 1))
+    eval_data = eval_data.astype('float32') /255
+    
+    test_data = test_data.values.reshape((-1, 28, 28, 1))
+    test_data = test_data.astype('float32') /255
+
+    # Convert `images28` to an array
+    train_data = np.array(train_data)
+    # Convert `images28` to grayscale
+    train_data = rgb2gray(train_data)
+    
+    # Convert `images28` to an array
+    eval_data = np.array(eval_data)
+    # Convert `images28` to grayscale
+    eval_data = rgb2gray(eval_data)
+    
+    # Convert `images28` to an array
+    test_data = np.array(eval_data)
+    # Convert `images28` to grayscale
+    test_data = rgb2gray(eval_data)
+    
+    #tensorflow model function
     def cnn_model(features, labels, mode):
         
-        my_placeholder = tf.placeholder(tf.float32, shape=[None, 800])
-        #Input layer
-        input_layer = tf.shape(my_placeholder)
+        input_layer = tf.reshape(features["x"], [-1, 28, 28, 1])
         
         # Convolutional Layer #1
         conv1 = tf.layers.conv2d(
@@ -48,15 +77,13 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number):
           # Logits Layer
         logits = tf.layers.dense(inputs=dropout, units=output_nodes_number)
         
+        predicted_classes =tf.argmax(input=logits, axis=1)
         predictions = {
-              # Generate predictions (for PREDICT and EVAL mode)
-              "classes": tf.argmax(input=logits, axis=1),
-              # Add `softmax_tensor` to the graph. It is used for PREDICT and by the
-              # `logging_hook`.
-              "probabilities": tf.nn.softmax(logits, name="softmax_tensor")
-        }
-        
-        if mode == tf.estimator.ModeKeys.PREDICT:
+                    'class_ids': predicted_classes[:, tf.newaxis],
+                    'probabilities': tf.nn.softmax(logits, name="softmax_tensor"),
+                    'logits': logits,
+                }
+        if mode == tf.estimator.ModeKeys.PREDICT:  
             return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
         
           # Calculate Loss (for both TRAIN and EVAL modes)
@@ -73,13 +100,12 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number):
           # Add evaluation metrics (for EVAL mode)
         eval_metric_ops = {
               "accuracy": tf.metrics.accuracy(
-                  labels=labels, predictions=predictions["classes"])
+                  labels=labels, predictions=predictions["class_ids"])
         }
         return tf.estimator.EstimatorSpec(
               mode=mode, loss=loss, eval_metric_ops=eval_metric_ops)
       
     #This is where we need to load up the data for each group
-
 
     # Create the Estimator
     cnn_classifier = tf.estimator.Estimator(
@@ -97,17 +123,15 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number):
         y=train_labels,
         batch_size=100,
         num_epochs=None,
-        shuffle=True,
-        output_nodes = 1)
+        shuffle=True)
     
     # Train one step and display the probabilties
     cnn_classifier.train(
         input_fn=train_input_fn,
         steps=1,
         hooks=[logging_hook])
-    
-    cnn_classifier.train(input_fn=train_input_fn, steps=20000)
-
+    #change steps to 20000
+    cnn_classifier.train(input_fn=train_input_fn, steps=1000)
     
     # Evaluation of the neural network
     eval_input_fn = tf.estimator.inputs.numpy_input_fn(
@@ -119,4 +143,57 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number):
     eval_results = cnn_classifier.evaluate(input_fn=eval_input_fn)
     print(eval_results)
     
-    return cnn_classifier
+    test_data_final = tf.estimator.inputs.numpy_input_fn(
+        x={"x": test_data},
+        num_epochs=1,
+        shuffle=False)
+    
+    pred = cnn_classifier.predict(test_data_final)
+    
+    return pred
+
+
+# example of how to implement
+# make sure when we group all the training data that the data is seperated into 
+# training and test data to make sure the model is accurate on a new set of data that
+# the neural network has not see yet
+
+#this data is already in 28 x 28 format so it did not need to resize the pictures
+#also this data is also gray scaled already so we dont need to apply it to this either
+#retrieving the data
+((train_data, train_labels),
+ (eval_data, eval_labels)) = tf.keras.datasets.mnist.load_data()
+
+train_data = train_data/np.float32(255)
+train_labels = train_labels.astype(np.int32)  # not required
+
+eval_data = eval_data/np.float32(255)
+eval_labels = eval_labels.astype(np.int32)  # not required
+
+test_data = pd.read_csv("test.csv")
+
+test_data = test_data.values.reshape((-1, 28, 28, 1))
+test_data = test_data.astype('float32') /255
+
+#this line creates and trains the entire model the inputs are below and must be given 
+# an output number of nodes, for this there is 10
+prediction = CNN(train_data,train_labels,eval_data,eval_labels,10, test_data)
+
+#once the model has been created we can predict on a new set of data the output
+#class_ids is the column of the predictions
+y_classes = list(prediction)
+
+y = pd.DataFrame.from_dict(y_classes)
+
+true_prediction = y.class_ids.astype(np.int32)
+
+output1 = pd.DataFrame({'ImageId':range(1,28001),'Label':true_prediction})
+
+output1.to_csv(r'/Users/jas10022/Documents/GitHub/iNaturalist/output1.csv', index=False)
+
+
+
+
+
+
+
