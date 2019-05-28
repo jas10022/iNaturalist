@@ -18,6 +18,22 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, model_name):
     
+    #convert images into 28 x 28 pictures
+    train_data = train_data.values.reshape((-1, 28, 28, 1))
+    train_data = train_data.astype('float32') /255
+    
+    eval_data = eval_data.values.reshape((-1, 28, 28, 1))
+    eval_data = eval_data.astype('float32') /255
+
+    # Convert `images28` to an array
+    train_data = np.array(train_data)
+    # Convert `images28` to grayscale
+    train_data = rgb2gray(train_data)
+    
+    # Convert `images28` to an array
+    eval_data = np.array(eval_data)
+    # Convert `images28` to grayscale
+    eval_data = rgb2gray(eval_data)
     
     #tensorflow model function
     def cnn_model(features, labels, mode):
@@ -178,7 +194,6 @@ predictions = predictor({'x':test_data})
 pred_class = np.array([p['class_ids'] for p in predictions]).squeeze()
 print(pred_class)
 
-
 #once the model has been created we can predict on a new set of data the output
 #class_ids is the column of the predictions
 y_classes = list(pred_class)
@@ -190,30 +205,3 @@ true_prediction = y.class_ids.astype(np.int32)
 output1 = pd.DataFrame({'ImageId':range(1,28001),'Label':true_prediction})
 
 output1.to_csv(r'/Users/jas10022/Documents/GitHub/iNaturalist/output1.csv', index=False)
-
-
-
-
-
-#convert images into 28 x 28 pictures
-    train_data = train_data.values.reshape((-1, 28, 28, 1))
-    train_data = train_data.astype('float32') /255
-    
-    eval_data = eval_data.values.reshape((-1, 28, 28, 1))
-    eval_data = eval_data.astype('float32') /255
-
-    # Convert `images28` to an array
-    train_data = np.array(train_data)
-    # Convert `images28` to grayscale
-    train_data = rgb2gray(train_data)
-    
-    # Convert `images28` to an array
-    eval_data = np.array(eval_data)
-    # Convert `images28` to grayscale
-    eval_data = rgb2gray(eval_data)
-    
-    # Convert `images28` to an array
-    test_data = np.array(eval_data)
-    # Convert `images28` to grayscale
-    test_data = rgb2gray(eval_data)
-
