@@ -35,7 +35,7 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
     # Convert `images28` to grayscale
     eval_data = rgb2gray(eval_data)
     
-    #tensorflow model function
+    #tensorflow model function for lowerNN
     def cnn_model(features, labels, mode):
         
         input_layer = tf.reshape(features["x"], [-1, 28, 28, 1])
@@ -63,6 +63,71 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
           # Dense Layer
         pool2_flat = tf.reshape(pool2, [-1, 7 * 7 * 64])
         dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
+        dropout = tf.layers.dropout(
+              inputs=dense, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
+        
+          # Logits Layer
+        logits = tf.layers.dense(inputs=dropout, units=output_nodes_number)
+        
+        predicted_classes =tf.argmax(input=logits, axis=1)
+        predictions = {
+                    'class_ids': predicted_classes[:, tf.newaxis],
+                    'probabilities': tf.nn.softmax(logits, name="softmax_tensor"),
+                    'logits': logits,
+                }
+        export_outputs = {
+          'prediction': tf.estimator.export.PredictOutput(predictions)
+          }
+        if mode == tf.estimator.ModeKeys.PREDICT:  
+            return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions, export_outputs=export_outputs)
+        
+          # Calculate Loss (for both TRAIN and EVAL modes)
+        loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)
+        
+          # Configure the Training Op (for TRAIN mode)
+        if mode == tf.estimator.ModeKeys.TRAIN:
+            optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
+            train_op = optimizer.minimize(
+                loss=loss,
+                global_step=tf.train.get_global_step())
+            return tf.estimator.EstimatorSpec(mode=mode, loss=loss, train_op=train_op)
+        
+          # Add evaluation metrics (for EVAL mode)
+        eval_metric_ops = {
+              "accuracy": tf.metrics.accuracy(
+                  labels=labels, predictions=predictions["class_ids"])
+        }
+        return tf.estimator.EstimatorSpec(
+              mode=mode, loss=loss, eval_metric_ops=eval_metric_ops)
+    
+    #tensorflow model function for upperNN
+    def cnn_model_upper(features, labels, mode):
+        
+        input_layer = tf.reshape(features["x"], [-1, 28, 28, 1])
+        
+        # Convolutional Layer #1
+        conv1 = tf.layers.conv2d(
+              inputs=input_layer,
+              filters=32,
+              kernel_size=[5, 5],
+              padding="same",
+              activation=tf.nn.L)
+        
+          # Pooling Layer #1
+        pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
+        
+          # Convolutional Layer #2 and Pooling Layer #2
+        conv2 = tf.layers.conv2d(
+              inputs=pool1,
+              filters=64,
+              kernel_size=[5, 5],
+              padding="same",
+              activation=tf.nn.L)
+        pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
+        
+          # Dense Layer
+        pool2_flat = tf.reshape(pool2, [-1, 7 * 7 * 64])
+        dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.L)
         dropout = tf.layers.dropout(
               inputs=dense, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
         
@@ -132,7 +197,7 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
         steps=1,
         hooks=[logging_hook])
     #change steps to 20000
-    cnn_classifier.train(input_fn=train_input_fn, steps=1000)
+    cnn_classifier.train(input_fn=train_input_fn, steps=20000)
     
     # Evaluation of the neural network
     eval_input_fn = tf.estimator.inputs.numpy_input_fn(
