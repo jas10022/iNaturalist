@@ -51,12 +51,29 @@ lower_train_data.set_index(keys=['CatagoryID'], drop=False,inplace=True)
 numbers=lower_train_data['CatagoryID'].unique().tolist()
 # now we can perform a lookup on a 'view' of the dataframe
 
+ordered_features = scaled_features.sort_values(['class', 'family', 'genus', 'kingdom', 'order', 'phylum'])
+
+features = ['class', 'family', 'genus', 'kingdom', 'order', 'phylum']
+
+classt = scaled_features['class'].unique().tolist()
+family = scaled_features['family'].unique().tolist()
+genus = scaled_features['genus'].unique().tolist()
+kingdom = scaled_features['kingdom'].unique().tolist()
+order = scaled_features['order'].unique().tolist()
+phylum = scaled_features['phylum'].unique().tolist()
+
+for a in kingdom:
+    for b in phylum:
+        for c in classt:
+            for d in order:
+                for e in family:
+                        current = ordered_features['id'].loc[(ordered_features['kingdom'] == a) & (ordered_features['phylum'] == b) & (ordered_features['class'] == c) & (ordered_features['order'] == d) & (ordered_features['family'] == e)]
+                        if len(current) != 0:
+                            print(len(current))
+                            current.to_csv(r'/Users/jas10022/Documents/GitHub/iNaturalist/' + str(a) + '_' + str(b) + '_' + str(c) + '_' + str(d) + '_' + str(e) + '.csv', index=False)
+
 for number in numbers:
     data = lower_train_data.loc[lower_train_data['CatagoryID']==number]
-
-    test = lower_train_data.sample(frac=0.0001)
-    
-    data = pd.concat([data,test])
 
     data.to_csv(r'/Users/jas10022/Documents/GitHub/iNaturalist/' + str(number) + '.csv', index=False)
 
