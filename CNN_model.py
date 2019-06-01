@@ -39,7 +39,7 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
         #tensorflow model function for lowerNN
         def cnn_model(features, labels, mode):
             
-            input_layer = tf.reshape(features["x"], [-1, 28, 28, 1])
+            input_layer = tf.reshape(features["x"], [-1, 75, 75, 1])
             
             # Convolutional Layer #1
             conv1 = tf.layers.conv2d(
@@ -105,7 +105,7 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
         #tensorflow model function for upperNN
         def cnn_model(features, labels, mode):
             
-            input_layer = tf.reshape(features["x"], [-1, 28, 28, 1])
+            input_layer = tf.reshape(features["x"], [-1, 75, 75, 1])
             
             # Convolutional Layer #1
             conv1 = tf.layers.conv2d(
@@ -272,3 +272,42 @@ true_prediction = y.class_ids.astype(np.int32)
 output1 = pd.DataFrame({'ImageId':range(1,28001),'Label':true_prediction})
 
 output1.to_csv(r'/Users/jas10022/Documents/GitHub/iNaturalist/output1.csv', index=False)
+
+from resizeimage import resizeimage
+
+#this is how we can create a data file with all the images in a 1,75,75 shape 
+#modify the for loop in order to use it and the allImages are all the images file names
+#update the .open method to the directory of the train images then the + im
+# the Images variable will contain all the picures each resized to 75 by 75
+
+Images = np.empty([1,75, 75])
+
+for im in allImages:
+    
+    img = Image.open(im, 'r').convert('LA')
+    cover = resizeimage.resize_cover(img, [75, 75], validate=False)
+    np_im = np.array(cover)
+
+    pix_val_flat = [x for sets in np_im for x in sets]
+    pixel_value = np.array(pix_val_flat)
+    train_data = pixel_value[:,0].astype('float64') /255
+    train_data = np.resize(train_data, (1,75,75))
+    
+    t = np.concatenate((Images,train_data))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
