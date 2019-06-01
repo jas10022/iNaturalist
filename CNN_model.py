@@ -18,22 +18,6 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, model_name, model_type):
     
-    #convert images into 28 x 28 pictures
-    train_data = train_data.values.reshape((-1, 28, 28, 1))
-    train_data = train_data.astype('float32') /255
-    
-    eval_data = eval_data.values.reshape((-1, 28, 28, 1))
-    eval_data = eval_data.astype('float32') /255
-
-    # Convert `images28` to an array
-    train_data = np.array(train_data)
-    # Convert `images28` to grayscale
-    train_data = rgb2gray(train_data)
-    
-    # Convert `images28` to an array
-    eval_data = np.array(eval_data)
-    # Convert `images28` to grayscale
-    eval_data = rgb2gray(eval_data)
     
     if model_type == "lower":
         #tensorflow model function for lowerNN
