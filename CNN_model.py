@@ -264,18 +264,22 @@ output1.to_csv(r'/Users/jas10022/Documents/GitHub/iNaturalist/output1.csv', inde
 #modify the for loop in order to use it and the allImages are all the images file names
 #update the .open method to the directory of the train images then the + im
 # the Images variable will contain all the picures each resized to 75 by 75
+import pickle
 
 upperNN = pd.read_csv('upperNN .csv')
 
 file_names = upperNN['File_Name']
-file_names = file_names[35054:265213]
+file_names = file_names[4999:265213]
 
 Images = np.empty([1,75, 75])
 i = 0
 a = 0
 for im in file_names:
-        if i >= 15000:
-            Images.to_csv(r'/Users/jas10022/Documents/GitHub/iNaturalist/'+ a +'.csv', index=False)
+        if i >= 5000:
+            Images = Images[1:]
+            output = open(str(a)+'.pkl', 'wb')
+            pickle.dump(Images, output)
+            output.close()            
             Images = np.empty([1,75, 75])
             a += 1
             i = 0
@@ -298,14 +302,17 @@ plt.imshow(Images[2], cmap="gray")
 plt.subplots_adjust(wspace=0.5)
 plt.show()
 
-Images.to_csv(r'/Users/jas10022/Documents/GitHub/iNaturalist/first_part.csv', index=False)
+#how to save 3d array
 
+output = open('data.pkl', 'wb')
+pickle.dump(Images, output)
+output.close()
 
+#how to read 3d array
 
+pkl_file = open('data.pkl', 'rb')
 
+data1 = pickle.load(pkl_file)
 
-
-
-
-
+pkl_file.close()
 
