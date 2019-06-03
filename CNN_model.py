@@ -13,6 +13,8 @@ from skimage import transform
 from skimage.color import rgb2gray
 import pandas as pd
 from PIL import Image
+from resizeimage import resizeimage
+
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -257,16 +259,20 @@ output1 = pd.DataFrame({'ImageId':range(1,28001),'Label':true_prediction})
 
 output1.to_csv(r'/Users/jas10022/Documents/GitHub/iNaturalist/output1.csv', index=False)
 
-from resizeimage import resizeimage
 
 #this is how we can create a data file with all the images in a 1,75,75 shape 
 #modify the for loop in order to use it and the allImages are all the images file names
 #update the .open method to the directory of the train images then the + im
 # the Images variable will contain all the picures each resized to 75 by 75
 
-Images = np.empty([1,75, 75])
+upperNN = pd.read_csv('upperNN .csv')
 
-for im in allImages:
+file_names = upperNN['File_Name']
+
+Images = np.empty([1,75, 75])
+i = 0
+
+for im in file_names:
     
     img = Image.open(im, 'r').convert('LA')
     cover = resizeimage.resize_cover(img, [75, 75], validate=False)
@@ -277,7 +283,9 @@ for im in allImages:
     train_data = pixel_value[:,0].astype('float64') /255
     train_data = np.resize(train_data, (1,75,75))
     
-    t = np.concatenate((Images,train_data))
+    Images = np.concatenate((Images,train_data))
+    i += 1
+    print(i)
 
 
 
