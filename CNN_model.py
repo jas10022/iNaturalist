@@ -268,31 +268,37 @@ output1.to_csv(r'/Users/jas10022/Documents/GitHub/iNaturalist/output1.csv', inde
 upperNN = pd.read_csv('upperNN .csv')
 
 file_names = upperNN['File_Name']
+file_names = file_names[35054:265213]
 
 Images = np.empty([1,75, 75])
 i = 0
-
+a = 0
 for im in file_names:
+        if i >= 15000:
+            Images.to_csv(r'/Users/jas10022/Documents/GitHub/iNaturalist/'+ a +'.csv', index=False)
+            Images = np.empty([1,75, 75])
+            a += 1
+            i = 0
+        img = Image.open(im, 'r').convert('LA')
+        cover = resizeimage.resize_cover(img, [75, 75], validate=False)
+        np_im = np.array(cover)
     
-    img = Image.open(im, 'r').convert('LA')
-    cover = resizeimage.resize_cover(img, [75, 75], validate=False)
-    np_im = np.array(cover)
+        pix_val_flat = np.array([x for sets in np_im for x in sets])
+        train_data = pix_val_flat[:,0].astype('float64') /255
+        train_data = np.resize(train_data, (1,75,75))
+        
+        Images = np.concatenate((Images,train_data))
+        i += 1
+        print(i)
+        
+#to look at pictures
+import matplotlib.pyplot as plt
 
-    pix_val_flat = [x for sets in np_im for x in sets]
-    pixel_value = np.array(pix_val_flat)
-    train_data = pixel_value[:,0].astype('float64') /255
-    train_data = np.resize(train_data, (1,75,75))
-    
-    Images = np.concatenate((Images,train_data))
-    i += 1
-    print(i)
+plt.imshow(Images[2], cmap="gray")
+plt.subplots_adjust(wspace=0.5)
+plt.show()
 
-
-
-
-
-
-
+Images.to_csv(r'/Users/jas10022/Documents/GitHub/iNaturalist/first_part.csv', index=False)
 
 
 
