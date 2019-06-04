@@ -14,6 +14,7 @@ from skimage.color import rgb2gray
 import pandas as pd
 from PIL import Image
 from resizeimage import resizeimage
+import pickle
 
 
 tf.logging.set_verbosity(tf.logging.INFO)
@@ -25,7 +26,7 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
         #tensorflow model function for lowerNN
         def cnn_model(features, labels, mode):
             
-            input_layer = tf.reshape(features["x"], [-1, 75, 75, 1])
+            input_layer = tf.reshape(features["x"], [-1, 75, 75,1])
             
             # Convolutional Layer #1
             conv1 = tf.layers.conv2d(
@@ -48,7 +49,7 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
             pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
             
               # Dense Layer
-            pool2_flat = tf.reshape(pool2, [-1, 7 * 7 * 64])
+            pool2_flat = tf.reshape(pool2, [-1,  18 * 18 * 64])
             dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
             dropout = tf.layers.dropout(
                   inputs=dense, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
@@ -69,7 +70,7 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
                 return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions, export_outputs=export_outputs)
             
               # Calculate Loss (for both TRAIN and EVAL modes)
-            loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)
+            loss = tf.losses.sigmoid_cross_entropy(multi_class_labels=labels, logits = logits)
             
               # Configure the Training Op (for TRAIN mode)
             if mode == tf.estimator.ModeKeys.TRAIN:
@@ -99,7 +100,7 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
                   filters=32,
                   kernel_size=[5, 5],
                   padding="same",
-                  activation=tf.nn.L)
+                  activation=tf.nn.relu)
             
               # Pooling Layer #1
             pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
@@ -110,12 +111,12 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
                   filters=64,
                   kernel_size=[5, 5],
                   padding="same",
-                  activation=tf.nn.L)
+                  activation=tf.nn.relu)
             pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
             
               # Dense Layer
-            pool2_flat = tf.reshape(pool2, [-1, 7 * 7 * 64])
-            dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.L)
+            pool2_flat = tf.reshape(pool2, [-1, 18 * 18 * 64])
+            dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
             dropout = tf.layers.dropout(
                   inputs=dense, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
             
@@ -135,7 +136,7 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
                 return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions, export_outputs=export_outputs)
             
               # Calculate Loss (for both TRAIN and EVAL modes)
-            loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)
+            loss = tf.losses.sigmoid_cross_entropy(multi_class_labels=labels, logits = logits)
             
               # Configure the Training Op (for TRAIN mode)
             if mode == tf.estimator.ModeKeys.TRAIN:
@@ -156,14 +157,14 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
     def serving_input_receiver_fn():
       inputs = {
         "x": tf.placeholder(tf.float32, [None, 28, 28, 1]),
-      }
+        }
+     
       return tf.estimator.export.ServingInputReceiver(inputs, inputs)
-      
     #This is where we need to load up the data for each group
 
     # Create the Estimator
     cnn_classifier = tf.estimator.Estimator(
-        model_fn=cnn_model, model_dir="/tmp/cnn_dynamic_model")
+        model_fn=cnn_model, model_dir="/tmp/" + model_name)
     
     # Set up logging for predictions
     tensors_to_log = {"probabilities": "softmax_tensor"}
@@ -185,7 +186,7 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
         steps=1,
         hooks=[logging_hook])
     #change steps to 20000
-    cnn_classifier.train(input_fn=train_input_fn, steps=20000)
+    cnn_classifier.train(input_fn=train_input_fn, steps=10)
     
     # Evaluation of the neural network
     eval_input_fn = tf.estimator.inputs.numpy_input_fn(
@@ -198,11 +199,11 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
     print(eval_results)
     
     #instead of predicting on a test data set we will save the model
-    model_dir = cnn_classifier.export_savedmodel(
-        model_name,
-        serving_input_receiver_fn=serving_input_receiver_fn)
-    
-    return model_dir
+    #model_dir = cnn_classifier.export_savedmodel(
+       # model_name,
+        #serving_input_receiver_fn=serving_input_receiver_fn)
+        
+    return  cnn_classifier
 
 
 # example of how to implement
@@ -264,7 +265,6 @@ output1.to_csv(r'/Users/jas10022/Documents/GitHub/iNaturalist/output1.csv', inde
 #modify the for loop in order to use it and the allImages are all the images file names
 #update the .open method to the directory of the train images then the + im
 # the Images variable will contain all the picures each resized to 75 by 75
-import pickle
 
 upperNN = pd.read_csv('upperNN .csv')
 
@@ -295,6 +295,105 @@ for im in file_names:
         i += 1
         print(i)
         
+Images = np.empty([1,75, 75])
+i = 0
+a = 54
+
+for num in range(59,65):
+    if i == 5:
+        Images = Images[1:]
+        output = open(str(a)+'.pkl', 'wb')
+        pickle.dump(Images, output)
+        output.close()            
+        Images = np.empty([1,75, 75])
+        i = 0
+        a += 1
+    pkl_file = open(str(num) + '.pkl', 'rb')
+
+    data1 = pickle.load(pkl_file)
+
+    Images = np.concatenate((Images,data1))
+    
+    pkl_file.close()
+    print(i)
+    i += 1
+    
+#how to read 3d array
+
+pkl_file = open('54.pkl', 'rb')
+pkl_file1 = open('55.pkl', 'rb')
+pkl_file2 = open('56.pkl', 'rb')
+pkl_file3 = open('57.pkl', 'rb')
+pkl_file4 = open('58.pkl', 'rb')
+pkl_file5 = open('58.pkl', 'rb')
+pkl_file6 = open('60.pkl', 'rb')
+pkl_file7 = open('61.pkl', 'rb')
+pkl_file8 = open('62.pkl', 'rb')
+pkl_file9 = open('63.pkl', 'rb')
+pkl_file10 = open('64.pkl', 'rb')
+
+data1 = pickle.load(pkl_file)
+data2 = pickle.load(pkl_file1)
+data3 = pickle.load(pkl_file2)
+data4 = pickle.load(pkl_file3)
+data5 = pickle.load(pkl_file4)
+data6 = pickle.load(pkl_file5)
+data7 = pickle.load(pkl_file6)
+data8 = pickle.load(pkl_file7)
+data9 = pickle.load(pkl_file8)
+data10 = pickle.load(pkl_file9)
+data11 = pickle.load(pkl_file10)
+
+pkl_file.close()
+    
+Images = np.empty([1,75, 75])
+i = 0
+for num in range(0,1010):
+    current = pd.read_csv('/Users/jas10022/Documents/GitHub/iNaturalist/Data/Lower_NN_Data/' + str(num) + '.csv')
+    for id in current['ImageId']:
+        file_num = int(id / 25000)
+        index = id - (file_num * 25000)
+        if file_num == 0:
+            im = data1[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 1:
+            im = data2[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 2:
+            im = data3[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 3:
+            im = data4[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 4:
+            im = data5[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 5:
+            im = data6[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 6:
+            im = data7[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 7:
+            im = data8[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 8:
+            im = data9[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 9:
+            im = data10[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 10:
+            im = data11[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+    Images = Images[1:]
+    output = open(str(i) + '.pkl', 'wb')
+    pickle.dump(Images, output)
+    output.close()
+    Images = np.empty([1,75, 75])
+    print(i)
+    i += 1
+
 #to look at pictures
 import matplotlib.pyplot as plt
 
@@ -303,16 +402,42 @@ plt.subplots_adjust(wspace=0.5)
 plt.show()
 
 #how to save 3d array
-
 output = open('data.pkl', 'wb')
 pickle.dump(Images, output)
 output.close()
 
-#how to read 3d array
+#Bellow is how to train the UpperNN model for the catagories, I gave the example for the Kingdom
 
-pkl_file = open('data.pkl', 'rb')
-
+#this reads the first file of image data
+#each of the files have 25000 images except for the last one
+pkl_file = open('54.pkl', 'rb')
 data1 = pickle.load(pkl_file)
-
 pkl_file.close()
 
+#This reads the Label data and extracts the specific values from the file read above
+upperNN = pd.read_csv('Data/upperNN.csv')
+Labels = upperNN['Kingdom'][0:25000]
+
+#this splits the data into training and val data for the model and also reshapes the label data
+from sklearn.model_selection import train_test_split
+X_train, X_val, y_train, y_val = train_test_split(data1, Labels, test_size = 0.05, random_state = 0)
+y_train = np.asarray(y_train).reshape((-1,1))
+y_val = np.asarray(y_val).reshape((-1,1))
+
+#this will run and create the model in the local working directory
+model_location = CNN(X_train,y_train,X_val,y_val,1, "Kingdom_Model", "upper")
+
+col_names = ['class', 'family','kingdom','order','phylum']
+
+for cat in col_names:
+    upperNN = pd.read_csv('Data/upperNN.csv')
+    Labels = upperNN[cat][0:25000]
+    
+    #this splits the data into training and val data for the model and also reshapes the label data
+    from sklearn.model_selection import train_test_split
+    X_train, X_val, y_train, y_val = train_test_split(data1, Labels, test_size = 0.05, random_state = 0)
+    y_train = np.asarray(y_train).reshape((-1,1))
+    y_val = np.asarray(y_val).reshape((-1,1))
+    
+    #this will run and create the model in the local working directory
+    model_location = CNN(X_train,y_train,X_val,y_val,1, "Kingdom_Model", "upper")

@@ -22,7 +22,7 @@ images_id = pd.DataFrame.from_dict(images["images"])
 train_data = pd.DataFrame({'ImageId':None,'Class':None,'Family':None,'Genus':None,'Kingdom':None,'Name':None,'Order':None,'Phylum':None}, index = [0])
     
 scaled_features = catagory_images.copy()
-col_names = ['class', 'family', 'genus','kingdom','name','order','phylum']
+col_names = ['class', 'family','kingdom','order','phylum']
 features = catagory_images[col_names]
 for i in range(0,7):
     labelencoder = LabelEncoder()
