@@ -78,20 +78,149 @@ for number in numbers:
     data.to_csv(r'/Users/jas10022/Documents/GitHub/iNaturalist/' + str(number) + '.csv', index=False)
 
 
-annotations = data["annotations"]
-#get path of file
-path = os.path.dirname(os.path.abspath(__file__))
+#this is how we can create a data file with all the images in a 1,75,75 shape 
+#modify the for loop in order to use it and the allImages are all the images file names
+#update the .open method to the directory of the train images then the + im
+# the Images variable will contain all the picures each resized to 75 by 75
 
-for x in annotations:
-	#make the dir
-	if not os.path.exists(x):
-    	os.makedirs(path + "/" + x)
-    #for every image id
-    for y in annotations[x]:
-    	#get image path
-    	imagename = images["images"][y]
-    	#rename the path to our new directory x
-    	print("RENAME: " + imagename + ".jpg  | to: " path + "/" + x + "/" + y + ".jpg")
-    	os.rename(imagename + ".jpg", path + "/" + x + "/" + y + ".jpg")
+upperNN = pd.read_csv('upperNN .csv')
+
+file_names = upperNN['File_Name']
+file_names = file_names[4999:265213]
+
+Images = np.empty([1,75, 75])
+i = 0
+a = 0
+for im in file_names:
+        if i >= 5000:
+            Images = Images[1:]
+            output = open(str(a)+'.pkl', 'wb')
+            pickle.dump(Images, output)
+            output.close()            
+            Images = np.empty([1,75, 75])
+            a += 1
+            i = 0
+        img = Image.open(im, 'r').convert('LA')
+        cover = resizeimage.resize_cover(img, [75, 75], validate=False)
+        np_im = np.array(cover)
+    
+        pix_val_flat = np.array([x for sets in np_im for x in sets])
+        train_data = pix_val_flat[:,0].astype('float64') /255
+        train_data = np.resize(train_data, (1,75,75))
+        
+        Images = np.concatenate((Images,train_data))
+        i += 1
+        print(i)
+        
+Images = np.empty([1,75, 75])
+i = 0
+a = 54
+
+for num in range(59,65):
+    if i == 5:
+        Images = Images[1:]
+        output = open(str(a)+'.pkl', 'wb')
+        pickle.dump(Images, output)
+        output.close()            
+        Images = np.empty([1,75, 75])
+        i = 0
+        a += 1
+    pkl_file = open(str(num) + '.pkl', 'rb')
+
+    data1 = pickle.load(pkl_file)
+
+    Images = np.concatenate((Images,data1))
+    
+    pkl_file.close()
+    print(i)
+    i += 1
+    
+#how to read 3d array
+
+pkl_file = open('54.pkl', 'rb')
+pkl_file1 = open('55.pkl', 'rb')
+pkl_file2 = open('56.pkl', 'rb')
+pkl_file3 = open('57.pkl', 'rb')
+pkl_file4 = open('58.pkl', 'rb')
+pkl_file5 = open('58.pkl', 'rb')
+pkl_file6 = open('60.pkl', 'rb')
+pkl_file7 = open('61.pkl', 'rb')
+pkl_file8 = open('62.pkl', 'rb')
+pkl_file9 = open('63.pkl', 'rb')
+pkl_file10 = open('64.pkl', 'rb')
+
+data1 = pickle.load(pkl_file)
+data2 = pickle.load(pkl_file1)
+data3 = pickle.load(pkl_file2)
+data4 = pickle.load(pkl_file3)
+data5 = pickle.load(pkl_file4)
+data6 = pickle.load(pkl_file5)
+data7 = pickle.load(pkl_file6)
+data8 = pickle.load(pkl_file7)
+data9 = pickle.load(pkl_file8)
+data10 = pickle.load(pkl_file9)
+data11 = pickle.load(pkl_file10)
+
+pkl_file.close()
+    
+Images = np.empty([1,75, 75])
+i = 0
+for num in range(0,1010):
+    current = pd.read_csv('/Users/jas10022/Documents/GitHub/iNaturalist/Data/Lower_NN_Data/' + str(num) + '.csv')
+    for id in current['ImageId']:
+        file_num = int(id / 25000)
+        index = id - (file_num * 25000)
+        if file_num == 0:
+            im = data1[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 1:
+            im = data2[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 2:
+            im = data3[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 3:
+            im = data4[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 4:
+            im = data5[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 5:
+            im = data6[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 6:
+            im = data7[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 7:
+            im = data8[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 8:
+            im = data9[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 9:
+            im = data10[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+        if file_num == 10:
+            im = data11[index].reshape(1,75,75)
+            Images = np.concatenate((Images,im))
+    Images = Images[1:]
+    output = open(str(i) + '.pkl', 'wb')
+    pickle.dump(Images, output)
+    output.close()
+    Images = np.empty([1,75, 75])
+    print(i)
+    i += 1
+
+#to look at pictures
+import matplotlib.pyplot as plt
+
+plt.imshow(Images[2], cmap="gray")
+plt.subplots_adjust(wspace=0.5)
+plt.show()
+
+#how to save 3d array
+output = open('data.pkl', 'wb')
+pickle.dump(Images, output)
+output.close()
 
 print("fuck yeah")
