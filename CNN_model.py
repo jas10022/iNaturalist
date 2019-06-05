@@ -15,6 +15,8 @@ import pandas as pd
 from PIL import Image
 from resizeimage import resizeimage
 import pickle
+from sklearn.model_selection import train_test_split
+
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -284,7 +286,6 @@ for cat in col_names:
     
     
     #this splits the data into training and val data for the model and also reshapes the label data
-    from sklearn.model_selection import train_test_split
     X_train, X_val, y_train, y_val = train_test_split(data1, Labels, test_size = 0.05, random_state = 0)
     y_train = np.asarray(y_train).reshape((-1,1))
     y_val = np.asarray(y_val).reshape((-1,1))
@@ -304,7 +305,6 @@ for cat in col_names:
         b += 1
     
         #this splits the data into training and val data for the model and also reshapes the label data
-        from sklearn.model_selection import train_test_split
         X_train, X_val, y_train, y_val = train_test_split(data1, Labels, test_size = 0.05, random_state = 0)
         y_train = np.asarray(y_train).reshape((-1,1))
         y_val = np.asarray(y_val).reshape((-1,1))
@@ -313,8 +313,8 @@ for cat in col_names:
         # you can also train with it using the training lines
         with tf.Session() as sess:
           # Restore variables from disk.
-            saver = tf.train.import_meta_graph(cat + "/model.ckpt-" + str(b * 10) + ".meta")
-            saver.restore(sess, cat + "/model.ckpt-" + str(b * 10))
+            saver = tf.train.import_meta_graph(cat + "/model.ckpt-" + str(b * 20000) + ".meta")
+            saver.restore(sess, cat + "/model.ckpt-" + str(b * 20000))
             print("Model restored.")
                   
             sunspot_classifier = tf.estimator.Estimator(
@@ -334,13 +334,8 @@ for cat in col_names:
                            num_epochs=None,
                            shuffle=True)
         
-                # Train one step and display the probabilties
-            sunspot_classifier.train(
-                    input_fn=train_input_fn,
-                    steps=1,
-                    hooks=[logging_hook])
                 #change steps to 20000
-            sunspot_classifier.train(input_fn=train_input_fn, steps=10)
+            sunspot_classifier.train(input_fn=train_input_fn, steps=20000)
             
                 # Evaluation of the neural network
             eval_input_fn = tf.estimator.inputs.numpy_input_fn(
@@ -382,7 +377,6 @@ for filename in os.listdir("Data/Sorted_species"):
              current_labels = pd.read_csv("Data/Lower_NN_Data/" + str(species))["CatagoryID"]
              Labels = np.concatenate((Labels,current_labels.values))
              
-         from sklearn.model_selection import train_test_split
          X_train, X_val, y_train, y_val = train_test_split(train_data, Labels, test_size = 0.20, random_state = 0)
          y_train = np.asarray(y_train).reshape((-1,1))
          y_val = np.asarray(y_val).reshape((-1,1))
