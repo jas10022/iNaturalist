@@ -316,12 +316,17 @@ model_location = CNN(X_train,y_train,X_val,y_val,1, "Kingdom_Model", "upper")
       print(pred_class)
 
         
-col_names = ['class', 'family','kingdom','order','phylum']
 
 #just a start on how to automate creating all the models for the upper NN
 
 #creating a basic model to start the model training
+# this code chunk will auto run and create a model trained on all the data for the species classification
+# this is all automated and may take a long time to create al 5 models as it has to go through
+#25000 images 11 times as the data is split up inot 11 files for each model
+col_names = ['class', 'family','kingdom','order','phylum']
 
+a = 0
+b = 1
 for cat in col_names:
     
     pkl_file = open('64.pkl', 'rb')
@@ -330,33 +335,74 @@ for cat in col_names:
     upperNN = pd.read_csv('Data/upperNN.csv')
     Labels = upperNN[cat][250000:265213]
     
+    
     #this splits the data into training and val data for the model and also reshapes the label data
     from sklearn.model_selection import train_test_split
     X_train, X_val, y_train, y_val = train_test_split(data1, Labels, test_size = 0.05, random_state = 0)
     y_train = np.asarray(y_train).reshape((-1,1))
     y_val = np.asarray(y_val).reshape((-1,1))
     
-    model_location = CNN(X_train,y_train,X_val,y_val,1, "Kingdom_Model", "upper")
+    model_location = CNN(X_train,y_train,X_val,y_val,1, str(cat), "upper")
 
-##need prediction values
+    ##need prediction values
 
-    #this session will open up any saved model created in directory and will run prediction on that
-    # you can also train with it using the training lines
-    with tf.Session() as sess:
-      # Restore variables from disk.
-      saver = tf.train.import_meta_graph(cat + "/model.ckpt-2.meta")
-      saver.restore(sess, tf.train.latest_checkpoint(cat)
-      print("Model restored.")
-      
-      sunspot_classifier = tf.estimator.Estimator(
-      model_fn=cnn_model_test, model_dir=cat + "/model.ckpt-2")
+    for i in range(54,64):
+        
+        pkl_file = open(str(i) + '.pkl', 'rb')
+        data1 = pickle.load(pkl_file)
     
-    # Set up logging for predictions
-    # Log the values in the "Softmax" tensor with label "probabilities"
-      tensors_to_log = {"probabilities": "softmax_tensor"}
-      logging_hook = tf.train.LoggingTensorHook(
-        tensors=tensors_to_log, every_n_iter=50)
-      
-      ## train here
+        upperNN = pd.read_csv('Data/upperNN.csv')
+        Labels = upperNN[cat][a * 25000:b * 25000]
+        a, b += 1
     
+        #this splits the data into training and val data for the model and also reshapes the label data
+        from sklearn.model_selection import train_test_split
+        X_train, X_val, y_train, y_val = train_test_split(data1, Labels, test_size = 0.05, random_state = 0)
+        y_train = np.asarray(y_train).reshape((-1,1))
+        y_val = np.asarray(y_val).reshape((-1,1))
+                    
+        #this session will open up any saved model created in directory and will run prediction on that
+        # you can also train with it using the training lines
+        with tf.Session() as sess:
+          # Restore variables from disk.
+          saver = tf.train.import_meta_graph(str(cat) + "/model.ckpt-" + + str(b * 200000) + ".meta")
+          saver.restore(sess, tf.train.latest_checkpoint(cat)
+          print("Model restored.")
+          
+          sunspot_classifier = tf.estimator.Estimator(
+          model_fn=cnn_model_test, model_dir=str(cat) + "/model.ckpt-" + str(b * 200000)))
+        
+        # Set up logging for predictions
+        # Log the values in the "Softmax" tensor with label "probabilities"
+          tensors_to_log = {"probabilities": "softmax_tensor"}
+          logging_hook = tf.train.LoggingTensorHook(
+            tensors=tensors_to_log, every_n_iter=50)
+          
+          ## train here
+          train_input_fn = tf.estimator.inputs.numpy_input_fn(
+                   x={"x": X_train},
+                   y=y_train,
+                   batch_size=100,
+                   num_epochs=None,
+                   shuffle=True)
+
+        # Train one step and display the probabilties
+          cnn_classifier.train(
+            input_fn=train_input_fn,
+            steps=1,
+            hooks=[logging_hook])
+        #change steps to 20000
+          cnn_classifier.train(input_fn=train_input_fn, steps=10)
+    
+        # Evaluation of the neural network
+          eval_input_fn = tf.estimator.inputs.numpy_input_fn(
+            x={"x": X_val},
+            y=y_val,
+            num_epochs=1,
+            shuffle=False)
+    
+          eval_results = sunspot_classifier.evaluate(input_fn=eval_input_fn)
+          print(eval_results)
+    if b == 11:
+        break
    
