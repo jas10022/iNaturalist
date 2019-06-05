@@ -151,6 +151,52 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
             }
             return tf.estimator.EstimatorSpec(
                   mode=mode, loss=loss, eval_metric_ops=eval_metric_ops)
+             return tf.estimator.export.ServingInputReceiver(inputs, inputs)
+    #This is where we need to load up the data for each group
+
+    ModelDir = "/tmp/" + model_name
+    # Create the Estimator
+    cnn_classifier = tf.estimator.Estimator(
+        model_fn=cnn_model, model_dir=ModelDir)
+
+    # Set up logging for predictions
+    tensors_to_log = {"probabilities": "softmax_tensor"}
+
+    logging_hook = tf.train.LoggingTensorHook(
+        tensors=tensors_to_log, every_n_iter=50)
+
+    # Train the model
+    train_input_fn = tf.estimator.inputs.numpy_input_fn(
+        x={"x": train_data},
+        y=train_labels,
+        batch_size=100,
+        num_epochs=None,
+        shuffle=True)
+
+    # Train one step and display the probabilties
+    cnn_classifier.train(
+        input_fn=train_input_fn,
+        steps=1,
+        hooks=[logging_hook])
+    #change steps to 20000
+    cnn_classifier.train(input_fn=train_input_fn, steps=10)
+
+    # Evaluation of the neural network
+    eval_input_fn = tf.estimator.inputs.numpy_input_fn(
+        x={"x": eval_data},
+        y=eval_labels,
+        num_epochs=1,
+        shuffle=False)
+
+    eval_results = cnn_classifier.evaluate(input_fn=eval_input_fn)
+    print(eval_results)
+    
+        #instead of predicting on a test data set we will save the model
+    #model_dir = cnn_classifier.export_savedmodel(
+       # model_name,
+        #serving_input_receiver_fn=serving_input_receiver_fn)
+
+    return  ModelDir
             
 def cnn_model_test(features, labels, mode):
             
@@ -256,47 +302,33 @@ pkl_file.close()
 upperNN = pd.read_csv('Data/upperNN.csv')
 Labels = upperNN['Kingdom'][0:25000]
 
-#this splits the data into training and val data for the model and also reshapes the label data
-from sklearn.model_selection import train_test_split
-X_train, X_val, y_train, y_val = train_test_split(data1, Labels, test_size = 0.05, random_state = 0)
-y_train = np.asarray(y_train).reshape((-1,1))
-y_val = np.asarray(y_val).reshape((-1,1))
 
 #this will run and create the model in the local working directory
 model_location = CNN(X_train,y_train,X_val,y_val,1, "Kingdom_Model", "upper")
 
-#this session will open up any saved model created in directory and will run prediction on that
-# you can also train with it using the training lines
-with tf.Session() as sess:
-  # Restore variables from disk.
-  saver = tf.train.import_meta_graph("Kingdom_Model/model.ckpt-2.meta")
-  saver.restore(sess, tf.train.latest_checkpoint("Kingdom_Model"))
-  print("Model restored.")
-  
-  sunspot_classifier = tf.estimator.Estimator(
-  model_fn=cnn_model_test, model_dir="Kingdom_Model/model.ckpt-2")
+ # predict with the model and print results
+      pred_input_fn = tf.estimator.inputs.numpy_input_fn(
+        x={"x": X_val},
+        shuffle=False)
+      pred_results = sunspot_classifier.predict(input_fn=pred_input_fn)
+     
+      pred_class = np.array([p['class_ids'] for p in pred_results]).squeeze()
+      print(pred_class)
 
-# Set up logging for predictions
-# Log the values in the "Softmax" tensor with label "probabilities"
-  tensors_to_log = {"probabilities": "softmax_tensor"}
-  logging_hook = tf.train.LoggingTensorHook(
-    tensors=tensors_to_log, every_n_iter=50)
-
-# predict with the model and print results
-  pred_input_fn = tf.estimator.inputs.numpy_input_fn(
-    x={"x": X_val},
-    shuffle=False)
-  pred_results = sunspot_classifier.predict(input_fn=pred_input_fn)
- 
-  pred_class = np.array([p['class_ids'] for p in pred_results]).squeeze()
-  print(pred_class)
         
 col_names = ['class', 'family','kingdom','order','phylum']
 
 #just a start on how to automate creating all the models for the upper NN
+
+#creating a basic model to start the model training
+
 for cat in col_names:
+    
+    pkl_file = open('64.pkl', 'rb')
+    data1 = pickle.load(pkl_file)
+    
     upperNN = pd.read_csv('Data/upperNN.csv')
-    Labels = upperNN[cat][0:25000]
+    Labels = upperNN[cat][250000:265213]
     
     #this splits the data into training and val data for the model and also reshapes the label data
     from sklearn.model_selection import train_test_split
@@ -304,5 +336,27 @@ for cat in col_names:
     y_train = np.asarray(y_train).reshape((-1,1))
     y_val = np.asarray(y_val).reshape((-1,1))
     
-    #this will run and create the model in the local working directory
     model_location = CNN(X_train,y_train,X_val,y_val,1, "Kingdom_Model", "upper")
+
+##need prediction values
+
+    #this session will open up any saved model created in directory and will run prediction on that
+    # you can also train with it using the training lines
+    with tf.Session() as sess:
+      # Restore variables from disk.
+      saver = tf.train.import_meta_graph(cat + "/model.ckpt-2.meta")
+      saver.restore(sess, tf.train.latest_checkpoint(cat)
+      print("Model restored.")
+      
+      sunspot_classifier = tf.estimator.Estimator(
+      model_fn=cnn_model_test, model_dir=cat + "/model.ckpt-2")
+    
+    # Set up logging for predictions
+    # Log the values in the "Softmax" tensor with label "probabilities"
+      tensors_to_log = {"probabilities": "softmax_tensor"}
+      logging_hook = tf.train.LoggingTensorHook(
+        tensors=tensors_to_log, every_n_iter=50)
+      
+      ## train here
+    
+   
