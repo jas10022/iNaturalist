@@ -355,4 +355,101 @@ for cat in col_names:
         break
     
 #this will be the lower NN code to run
-   
+#this code is very basic where it will look into the Data/Sorted_species files one by one as these
+# files contains the groups for all the species and it will train one model for each of the groupings
+# once read it will look at all the species ids and then look into the Data/Train_data file to get all 
+# the picture data and store itinto train_data for each species
+# the code will also take the labels from the Data/Lower_NN_Data files to create the Labels for the training
+# then after the code splits the data created into training and validation data to train the model
+output_nodes_number = 0
+
+import os
+
+for filename in os.listdir("Data/Sorted_species"):
+    if filename.endswith(".csv"):
+         data = pd.read_csv("Data/Sorted_species/" + filename)
+         output_nodes_number = data.size
+         name = os.path.splitext(filename)[0]
+         train_data = np.empty([1,75, 75])
+         Labels = np.empty([1])
+         for species in data:
+                
+             pkl_file = open("Data/Train_data/" + str(species) + '.pkl', 'rb')
+             data1 = pickle.load(pkl_file)
+             train_data = np.concatenate((train_data,data1))
+             pkl_file.close()
+             
+             current_labels = pd.read_csv("Data/Lower_NN_Data/" + str(species))["CatagoryID"]
+             Labels = np.concatenate((Labels,current_labels.values))
+             
+         from sklearn.model_selection import train_test_split
+         X_train, X_val, y_train, y_val = train_test_split(train_data, Labels, test_size = 0.20, random_state = 0)
+         y_train = np.asarray(y_train).reshape((-1,1))
+         y_val = np.asarray(y_val).reshape((-1,1))
+        
+         model_location = CNN(X_train,y_train,X_val,y_val,output_nodes_number, name, "lower")
+
+
+def cnn_model_lower(features, labels, mode):
+            
+            input_layer = tf.reshape(features["x"], [-1, 75, 75,1])
+            
+            # Convolutional Layer #1
+            conv1 = tf.layers.conv2d(
+                  inputs=input_layer,
+                  filters=32,
+                  kernel_size=[5, 5],
+                  padding="same",
+                  activation=tf.nn.relu)
+            
+              # Pooling Layer #1
+            pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
+            
+              # Convolutional Layer #2 and Pooling Layer #2
+            conv2 = tf.layers.conv2d(
+                  inputs=pool1,
+                  filters=64,
+                  kernel_size=[5, 5],
+                  padding="same",
+                  activation=tf.nn.relu)
+            pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
+            
+              # Dense Layer
+            pool2_flat = tf.reshape(pool2, [-1,  18 * 18 * 64])
+            dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
+            dropout = tf.layers.dropout(
+                  inputs=dense, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
+            
+              # Logits Layer
+            logits = tf.layers.dense(inputs=dropout, units=output_nodes_number)
+            
+            predicted_classes =tf.argmax(input=logits, axis=1)
+            predictions = {
+                        'class_ids': predicted_classes[:, tf.newaxis],
+                        'probabilities': tf.nn.softmax(logits, name="softmax_tensor"),
+                        'logits': logits,
+                    }
+            export_outputs = {
+              'prediction': tf.estimator.export.PredictOutput(predictions)
+              }
+            if mode == tf.estimator.ModeKeys.PREDICT:  
+                return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions, export_outputs=export_outputs)
+            
+              # Calculate Loss (for both TRAIN and EVAL modes)
+            loss = tf.losses.sigmoid_cross_entropy(multi_class_labels=labels, logits = logits)
+            
+              # Configure the Training Op (for TRAIN mode)
+            if mode == tf.estimator.ModeKeys.TRAIN:
+                optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
+                train_op = optimizer.minimize(
+                    loss=loss,
+                    global_step=tf.train.get_global_step())
+                return tf.estimator.EstimatorSpec(mode=mode, loss=loss, train_op=train_op)
+            
+              # Add evaluation metrics (for EVAL mode)
+            eval_metric_ops = {
+                  "accuracy": tf.metrics.accuracy(
+                      labels=labels, predictions=predictions["class_ids"])
+            }
+            return tf.estimator.EstimatorSpec(
+                  mode=mode, loss=loss, eval_metric_ops=eval_metric_ops)
