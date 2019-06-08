@@ -13,9 +13,11 @@ from skimage import transform
 from skimage.color import rgb2gray
 import pandas as pd
 from PIL import Image
-from resizeimage import resizeimage
+#from resizeimage import resizeimage
 import pickle
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+
 
 
 tf.logging.set_verbosity(tf.logging.INFO)
@@ -70,11 +72,10 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
                 return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions, export_outputs=export_outputs)
             
               # Calculate Loss (for both TRAIN and EVAL modes)
-            loss = tf.losses.sigmoid_cross_entropy(multi_class_labels=labels, logits = logits)
-            
+            loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)            
               # Configure the Training Op (for TRAIN mode)
             if mode == tf.estimator.ModeKeys.TRAIN:
-                optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
+                optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.0001)
                 train_op = optimizer.minimize(
                     loss=loss,
                     global_step=tf.train.get_global_step())
@@ -136,11 +137,11 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
                 return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions, export_outputs=export_outputs)
             
               # Calculate Loss (for both TRAIN and EVAL modes)
-            loss = tf.losses.sigmoid_cross_entropy(multi_class_labels=labels, logits = logits)
+            loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)            
             
               # Configure the Training Op (for TRAIN mode)
             if mode == tf.estimator.ModeKeys.TRAIN:
-                optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
+                optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.0001)
                 train_op = optimizer.minimize(
                     loss=loss,
                     global_step=tf.train.get_global_step())
@@ -249,7 +250,7 @@ def cnn_model_test(features, labels, mode):
             
               # Configure the Training Op (for TRAIN mode)
             if mode == tf.estimator.ModeKeys.TRAIN:
-                optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
+                optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.0001)
                 train_op = optimizer.minimize(
                     loss=loss,
                     global_step=tf.train.get_global_step())
@@ -272,17 +273,19 @@ def cnn_model_test(features, labels, mode):
 # this is all automated and may take a long time to create al 5 models as it has to go through
 #25000 images 11 times as the data is split up inot 11 files for each model
 # bellow is the code for Upper NN to give to ur dad to run
-col_names = ['class', 'family','kingdom','order','phylum']
-
+col_names = ['Class', 'Family','Kingdom','Order','Phylum']
+#, 'Family','Kingdom','Order','Phylum'
 a = 0
 b = 1
+output_nodes = 0
 for cat in col_names:
     
-    pkl_file = open('64.pkl', 'rb')
+    pkl_file = open('Data/UpperNN_data/64.pkl', 'rb')
     data1 = pickle.load(pkl_file)
     
     upperNN = pd.read_csv('Data/upperNN.csv')
-    Labels = upperNN[cat][250000:265213]
+    Labels = upperNN[cat][249999:265214]
+    output_nodes = upperNN[cat].unique().size
     
     
     #this splits the data into training and val data for the model and also reshapes the label data
@@ -290,13 +293,13 @@ for cat in col_names:
     y_train = np.asarray(y_train).reshape((-1,1))
     y_val = np.asarray(y_val).reshape((-1,1))
     
-    model_location = CNN(X_train,y_train,X_val,y_val,1, str(cat), "upper")
+    model_location = CNN(X_train,y_train,X_val,y_val,output_nodes, str(cat), "upper")
 
     ##need prediction values
 
     for i in range(54,64):
         
-        pkl_file = open(str(i) + '.pkl', 'rb')
+        pkl_file = open('Data/UpperNN_data/' + str(i) + '.pkl', 'rb')
         data1 = pickle.load(pkl_file)
     
         upperNN = pd.read_csv('Data/upperNN.csv')
@@ -313,8 +316,8 @@ for cat in col_names:
         # you can also train with it using the training lines
         with tf.Session() as sess:
           # Restore variables from disk.
-            saver = tf.train.import_meta_graph(cat + "/model.ckpt-" + str(b * 20000) + ".meta")
-            saver.restore(sess, cat + "/model.ckpt-" + str(b * 20000))
+            saver = tf.train.import_meta_graph(cat + "/model.ckpt-" + str((b * 20000) + 1) + ".meta")
+            saver.restore(sess, cat + "/model.ckpt-" + str((b * 20000) + 1))
             print("Model restored.")
                   
             sunspot_classifier = tf.estimator.Estimator(
@@ -362,24 +365,30 @@ import os
 
 for filename in os.listdir("Data/Sorted_species"):
     if filename.endswith(".csv"):
-         data = pd.read_csv("Data/Sorted_species/" + filename)
-         output_nodes_number = data.size
+         data = pd.read_csv("Data/Sorted_species/" + filename, names=['a'])
+         output_nodes_number = data.size 
          name = os.path.splitext(filename)[0]
          train_data = np.empty([1,75, 75])
          Labels = np.empty([1])
-         for species in data:
+         for species in data['a']:
                 
              pkl_file = open("Data/Train_data/" + str(species) + '.pkl', 'rb')
              data1 = pickle.load(pkl_file)
              train_data = np.concatenate((train_data,data1))
              pkl_file.close()
              
-             current_labels = pd.read_csv("Data/Lower_NN_Data/" + str(species))["CatagoryID"]
+             current_labels = pd.read_csv("Data/Lower_NN_Data/" + str(species) + '.csv')["CatagoryID"]
              Labels = np.concatenate((Labels,current_labels.values))
-             
+        
+         Labels = Labels[1:]
+         train_data = train_data[1:]
+         
+         labelencoder = LabelEncoder()
+         Labels[0:] = labelencoder.fit_transform(Labels[0:])
+
          X_train, X_val, y_train, y_val = train_test_split(train_data, Labels, test_size = 0.20, random_state = 0)
-         y_train = np.asarray(y_train).reshape((-1,1))
-         y_val = np.asarray(y_val).reshape((-1,1))
+         y_train = np.asarray(y_train).astype('int32').reshape((-1,1))
+         y_val = np.asarray(y_val).astype('int32').reshape((-1,1))
         
          model_location = CNN(X_train,y_train,X_val,y_val,output_nodes_number, name, "lower")
 
@@ -434,7 +443,7 @@ def cnn_model_lower(features, labels, mode):
             
               # Configure the Training Op (for TRAIN mode)
             if mode == tf.estimator.ModeKeys.TRAIN:
-                optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
+                optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.0001)
                 train_op = optimizer.minimize(
                     loss=loss,
                     global_step=tf.train.get_global_step())
