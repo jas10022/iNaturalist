@@ -181,7 +181,7 @@ def CNN(train_data, train_labels, eval_data, eval_labels, output_nodes_number, m
         shuffle=True)
 
     #change steps to 20000
-    cnn_classifier.train(input_fn=train_input_fn, steps=20000, hooks=[logging_hook])
+    cnn_classifier.train(input_fn=train_input_fn, steps=2000, hooks=[logging_hook])
 
     # Evaluation of the neural network
     eval_input_fn = tf.estimator.inputs.numpy_input_fn(
@@ -338,7 +338,7 @@ for cat in col_names:
                            shuffle=True)
         
                 #change steps to 20000
-            sunspot_classifier.train(input_fn=train_input_fn, steps=20000)
+            sunspot_classifier.train(input_fn=train_input_fn, steps=2000)
             
                 # Evaluation of the neural network
             eval_input_fn = tf.estimator.inputs.numpy_input_fn(
