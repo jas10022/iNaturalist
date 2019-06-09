@@ -316,8 +316,9 @@ for cat in col_names:
         # you can also train with it using the training lines
         with tf.Session() as sess:
           # Restore variables from disk.
-            saver = tf.train.import_meta_graph(cat + "/model.ckpt-" + str((b * 20000) + 1) + ".meta")
-            saver.restore(sess, cat + "/model.ckpt-" + str((b * 20000) + 1))
+            currentCheckpoint = tf.train.latest_checkpoint(cat)
+            saver = tf.train.import_meta_graph(currentCheckpoint + ".meta")
+            saver.restore(sess, currentCheckpoint)
             print("Model restored.")
                   
             sunspot_classifier = tf.estimator.Estimator(
