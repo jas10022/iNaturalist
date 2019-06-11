@@ -13,12 +13,11 @@ from skimage import transform
 from skimage.color import rgb2gray
 import pandas as pd
 from PIL import Image
-#from resizeimage import resizeimage
+from resizeimage import resizeimage
 import pickle
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-
-
+import os
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -361,8 +360,6 @@ for cat in col_names:
 # the code will also take the labels from the Data/Lower_NN_Data files to create the Labels for the training
 # then after the code splits the data created into training and validation data to train the model
 output_nodes_number = 0
-
-import os
 
 for filename in os.listdir("Data/Sorted_species"):
     if filename.endswith(".csv"):

@@ -1,4 +1,3 @@
-#aionkov
 
 import json
 import os
@@ -47,8 +46,7 @@ lower_train_data = pd.DataFrame({'FileName': images_id['file_name'],'ImageId': a
 lower_train_data = lower_train_data.sort_values(by=['CatagoryID'])
 
 lower_train_data.set_index(keys=['CatagoryID'], drop=False,inplace=True)
-# get a list of names
-numbers=lower_train_data['CatagoryID'].unique().tolist()
+
 # now we can perform a lookup on a 'view' of the dataframe
 
 ordered_features = scaled_features.sort_values(['class', 'family', 'genus', 'kingdom', 'order', 'phylum'])
@@ -72,6 +70,9 @@ for a in kingdom:
                             print(len(current))
                             current.to_csv(r'/Users/jas10022/Documents/GitHub/iNaturalist/' + str(a) + '_' + str(b) + '_' + str(c) + '_' + str(d) + '_' + str(e) + '.csv', index=False)
 
+# get a list of names
+numbers=lower_train_data['CatagoryID'].unique().tolist()
+
 for number in numbers:
     data = lower_train_data.loc[lower_train_data['CatagoryID']==number]
 
@@ -86,7 +87,6 @@ for number in numbers:
 upperNN = pd.read_csv('upperNN .csv')
 
 file_names = upperNN['File_Name']
-file_names = file_names[4999:265213]
 
 Images = np.empty([1,75, 75])
 i = 0
@@ -111,6 +111,11 @@ for im in file_names:
         Images = np.concatenate((Images,train_data))
         i += 1
         print(i)
+        
+Images = Images[1:]
+output = open(str(a)+'.pkl', 'wb')
+pickle.dump(Images, output)
+output.close()
         
 Images = np.empty([1,75, 75])
 i = 0
